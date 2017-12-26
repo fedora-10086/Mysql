@@ -1,0 +1,403 @@
+--查看MySQL本次启动后的运行时间(单位：秒)
+show status like 'uptime';
+
+--查看select语句的执行数
+show [global] status like 'com_select';
+
+--查看insert语句的执行数
+show [global] status like 'com_insert';
+
+--查看update语句的执行数
+show [global] status like 'com_update';
+
+--查看delete语句的执行数
+show [global] status like 'com_delete';
+
+--查看试图连接到MySQL(不管是否连接成功)的连接数
+show status like 'connections';
+
+--查看线程缓存内的线程的数量。
+show status like 'threads_cached';
+
+--查看当前打开的连接的数量。
+show status like 'threads_connected';
+
+--查看当前打开的连接的数量。
+show status like 'threads_connected';
+
+--查看创建用来处理连接的线程数。如果Threads_created较大，你可能要增加thread_cache_size值。
+show status like 'threads_created';
+
+--查看激活的(非睡眠状态)线程数。
+show status like 'threads_running';
+
+--查看立即获得的表的锁的次数。
+show status like 'table_locks_immediate';
+
+--查看不能立即获得的表的锁的次数。如果该值较高，并且有性能问题，你应首先优化查询，然后拆分表或使用复制。
+show status like 'table_locks_waited';
+
+--查看创建时间超过slow_launch_time秒的线程数。
+show status like 'slow_launch_threads';
+
+--查看查询时间超过long_query_time秒的查询的个数。
+show status like 'slow_queries';
+
+
+mysql> truncate table tb_name;      //清空 表 数据，保留表结构。
+mysql> show variables like 'character_set_server';   //检查字符集
+mysql> show status like 'Handler_read%';            //检查索引
+mysql> show status like 'Table%';                   //检查锁表情况
+mysql> show status like 'innodb_row_lock_%';         //检查innodb锁行情况
+mysql> show innodb status;
+mysql> show engines;
+mysql> show processlist;
+mysql> show status;
+mysql> show master status\G
+mysql> show slave status\G
+mysql> show binlog events in 'mysql-bin.000055';
+mysql> flush tables with read lock;          //锁表
+mysql> unlock tables;                        //解锁表
+mysql> SHOW STATUS LIKE 'Opened_tables';
+mysql> show status like 'qcache%';
+mysql> show variables like ‘%query_cache%’;
+mysql> show variables like 'thread%';
+mysql> show global status like 'open%_tables';
+mysql> show global status like '%wait%';
+mysql> flush tables;
+mysql> flush status;
+mysql> flush query cache;   //整理缓存碎片
+mysql> optimize table tb_name;   //清理MYISAM、InnoDB 表空间碎片，前后对比 Data_length
+mysql> show table status like 'tb_name'\G;
+mysql> show table status where name='box_operate_log'\G
+mysql> show grants for balabalabo@'localhost';
+mysql> reset query cache;   //清空查询缓存
+mysql> show variables like 'innodb_file_per_table';    //是否独享表空间
+mysql> alter table tb_name ENGINE = 'InnoDB';    //转换表 引擎
+mysql> analyze table tb_name;      //InnoDB 表 修复空间碎片方式
+
+ 
+mysql> show status like 'thread%';
+mysql> show status like 'open%';        // open_tables( >| < | = )table_open_cache
+mysql> show variables like 'table%';    // open_tables( >| < | = )table_open_cache
+mysql> show status like 'thread%';
+mysql> show status like '%connections%';
+mysql> show status like '%thread%';
+mysql> show global status like 'open%_tables';
+mysql> SHOW GLOBAL STATUS LIKE 'innodb_buffer_pool_pages_%';
+发现 Innodb_buffer_pool_pages_free 为 0，则说明 buffer pool 已经被用光，需要增大 innodb_buffer_pool_size
+
+mysql> show status like 'Qca%';            --缓存
+mysql> show status like 'Com_sel%';        --总计查询语句
+mysql> select @@global.tx_isolation;             --事务隔离级别
+mysql> select @@global.autocommit;             --自动提交
+mysql> select @@global.innodb_table_locks;        --内部锁定一个表
+mysql> select @@global.innodb_lock_wait_timeout;     --控制等待时间
+mysql> select @@global.innodb_locks_unsafe_for_binlog;    --slect,into...select 是否锁定源表
+mysql> show status like 'innodb_row_lock_%';
+解释如下：
+   Innodb_row_lock_current_waits：当前等待锁的数量
+   Innodb_row_lock_time：系统启动到现在、锁定的总时间长度
+   Innodb_row_lock_time_avg：每次平均锁定的时间
+   Innodb_row_lock_time_max：最长一次锁定时间
+   Innodb_row_lock_waits：系统启动到现在、总共锁定次数
+
+mysql> show variables like 'binlog_cache_size';
+mysql> show global status like 'binlog_cache%';
+mysql>show status like 'innodb_log%';
+mysql> show status like 'innodb_row_lock%';
+shell>mysql -u root -p --execute="show engine innodb status \G" > /home/mysql.log
+shell>mysql -u root -p --execute="show engine innodb status \G"
+
+
+alter system kill session '391,1810'
+慢查询语句：
+用MySQL自带的命令mysqldumpslow进行查询慢语句。比如：下面的命令可以查出访问次数最多的20个SQL语句：
+mysqldumpslow-s c -t 20 host-slow.log
+
+基于二进制日志恢复mysql数据库
+mysqlbinlog --start-datetime "2016-02-23 02:00:00" --stop-datetime='2016-02-23 02:05:00' /data/mysql/mysql-bin.000001 | mysql -uroot -pxxxxxxxxyyyyy
+
+1、完整恢复
+mysql localhost mysql-bin.000001 | mysql -uroot -p
+
+2、时间点恢复
+mysqlbinlog --stop-datetime='2010-09-04 9:59:59' /var/log/mysql-bin.000001 | mysql -uroot -p
+
+然后跳过误操作的时间点，继续执行后面的binlog
+mysqlbinlog --start-datetime='2010-09-04 10:01:00' /var/log/mysql-bin.000001 | mysql -uroot -p
+
+3、基于位置恢复
+其中drop tables test1这个误操作的end_log_pos为8879917，几下这个id,得出它前后操作的id分别为8879916,8879918
+我们将进行位置恢复操作
+mysqlbinlog --stop-position='8879916' /var/log/mysql-bin.000001 | mysql -uroot -p
+
+mysqlbinlog --start-position='8879918' /var/log/mysql-bin.000001 | mysql -uroot -p
+
+删除日志：
+执行PURGE MASTER LOGS TO 'mysql-bin.******'命令，是将'******'编号之前的所有日志进行删除
+执行PURGE MASTER LOGS BEFORE 'yyyy-mm-dd hh:mm:ss'命令，是将在'yyyy-mm-dd hh:mm:ss'时间之前的所有日志进行删除
+
+
+key_buffer_size = 512M
+thread_cache_size = 32
+query_cache_size = 64M
+max_connections = 1024
+table_open_cache = 2048
+table_definition_cache = 2048
+
+
+导出、导入mysql数据库中单个表数据和表结构
+导出：mysqldump -u xxx -pyyy db_name table_name >/root/sms_log.sql
+导入：mysql -u xxx -pyyy db_name </root/sms_log.sql
+
+1.导出一个表
+mysqldump -u 用户名 -p 数据库名 表名> 导出的文件名
+mysqldump -u wcnc -p smgp_apps_wcnc users> wcnc_users.sql
+
+2.导出一个数据库结构
+mysqldump -u wcnc -p -d --add-drop-table smgp_apps_wcnc >d:\wcnc_db.sql
+-d 没有数据 --add-drop-table 在每个create语句之前增加一个drop table
+
+mysqldump -uroot -p db_name>20090115.sql    回车即可导出的为数据库中所有的数据。
+mysqldump -d -uroot -p db_name>20090115.sql     导出的为数据库中所有表的结构
+
+mysqldump -uroot -p db_name user>20090115.sql     导出的为数据库中user表的结构
+
+
+
+如果Open_tables的值已经接近table_cache的值，且Opened_tables还在不断变大，则说明mysql正在将缓存的表释放以容纳新的表，此时可能需要加大table_cache的值。对于大多数情况，
+比较适合的值：
+Open_tables / Opened_tables >= 0.85
+Open_tables / table_cache <= 0.95
+
+table_cache=max_connections*N(2)
+thread_cache命中率,公式为:
+Thread_Cache_Hit=(Connections-Thread_created)/Connections*100%
+
+ 
+  mysql>show binary logs;
+  mysql>show master status;
+  mysql>show binlog events in '二进制日志文件' from 'position';
+  mysql>purge binary logs to 'xx日志文件'；//删除‘xx日志文件’之前的日志文件
+  mysql>flush logs;   //刷新、滚动日志文件；
+  mysqlbinlog
+   --start-position
+   --stop-position
+   --start-datetime 'yyyy-mm-dd hh:mm:ss'
+   --stop-datetime 'yyyy-mm-dd hh:mm:ss';
+
+  mysql>show variables like '%log%';
+  //观察log_bin(二进制日志开启总开关)
+  sql_log_bin(on|off  用于控制二进制日志信息是否记录)
+  binlog_stmt_cache_size(执行语句缓存大小)
+  sync_binlog :设定多久同步一次二进制日志到磁盘，0（不同步），任何正数值都表示对二进制每多少次写操作之后同步一次，当autocommit的值为1，每条语句的执行都会引起二进制日志同步，否则，每个事务的提交会引起二进制日志同步。
+ 
+###########。。。任何产生IO的地方都会引起性能下降的地方。。。。。################
+ 
+  sql_log_off :用于禁止将一般查询日志类信息记录进日志文件
+
+  expire_logs_days=0 日志的过期天数，不建议删除！！！！！
+ 
+ 中继日志：从服务器的日志信息
+  从主服务器的二进制日志文件中复制而来的事件，并保存为的日志文件：
+ 
+ 事务日志：事务性存储引擎用于保证 原子性、一致性、持久性、隔离性
+
+  innodb_flush_log_at_trx_commit=# 就从内存提交一次到事务日志。
+   0：每秒钟同步，并执行磁盘flush操作
+   1：每事务同步，并执行磁盘flush操作，
+  2：每事务同步,但不执行磁盘flush操作
+  innodb_log_buffer_size :日志缓存大小
+  innodb_log_files_size:日志文件大小
+  innodb_log_files_in_group=2  默认双事务日志文件，写满一个到另一个，写满的事务日志文件即刻同步到数据文件中去，，反复循环
+  innodb_mirrired_log_groups=1 事务日志镜像，，启用并指定存储位置
+qcache% ,open%tables,threads%,%key_read%,created_tmp%,sort%,com_select     关注的状态参数
+
+mysql>show global variables like '%log%';     //查看日志相关配置
+mysql> set GLOBAL max_connections=1000;
+
+mysql>select count(*) from users;
+variables——变量
+mysql> show variables like "thread%";
+mysql> show status like "thread%";              //当前线程状况
+mysql> show master status\G
+mysql> show slave status\G
+mysql> show binlog events in 'mysql-bin.000055';
+mysql> flush tables with read lock;
+mysql> unlock tables;
+mysql> SHOW STATUS LIKE 'Opened_tables';
+mysql> show variables like ‘%query_cache%’;
+mysql> show variables like ‘max_connections';               #查看最大连接数（默认100）
+mysql> show global status like ‘max_used_connections ‘;   #查看最大使用量
+mysql> set GLOBAL max_connections=1000;           设置新的MySQL最大连接数为1000
+mysql>SHOW STATUS LIKE ‘Open%tables’
+mysql>SHOW STATUS LIKE ‘key_read%’
+
+SHOW VARIABLES WHERE Variable_name LIKE %tmp_table_size%     #查看服务器临时表信息
+max_heap_table_size比tmp_table_size小时，则系统会把max_heap_table_size的值作为最大的内存临时表的上限，大于这个时，改写硬盘。
+
+
+
+查看mysql关于mysql-bin的配置
+show variables like '%max_binlog_size%'
+max_binlog_size 1073741824 默认大小为1G
+但是mysql-bin文件过多会占用大量的磁盘空间，所以要对日志文件进行清理，方法如下：
+1、禁止方法: vi /etc/my.cnf把里面的
+#log-bin=mysql-bin
+注释掉,重启mysql服务即可.
+2、mysql> reset master;或flush logs; (清除日志文件)
+3、mysql> set global expire_logs_days=2；只保留两天的mysql-bin日志
+4、删除ablelee.000003之前的而没有包含ablelee.000003
+      mysql> purge binary logs to 'ablelee.000003';
+
+
+在shell 里面执行mysql_fix_privilege_tables 命令升级权限表
+
+查看Mysql server 当前参数
+1. 查看服务器参数默认值：
+mysqld --verbose --help
+2. 查看服务器参数实际值：
+shell> mysqladmin variables
+或者
+mysql> SHOW VARIABLES;
+3. 查看服务器运行状态值：
+shell> mysqladmin extended-status
+或者
+mysql>SHOW STATUS；
+
+mysql> SET GLOBAL keycache1.key_buffer_size=128*1024;
+要想删除键高速缓冲，将其大小设置为零：
+mysql> SET GLOBAL keycache1.key_buffer_size=0;
+
+root@ubuntu:#./mysqlbinlog --start-datetime "2014-11-25 15:50:00" --stop-datetime "2014-11-25 16:50:00" mysql-bin.000056
+
+root@ubuntu:#/usr/local/mysql/bin# ./mysqlbinlog --start-datetime "2014-10-22 00:10:00" --stop-datetime "2014-10-22 01:00:00" mysql-bin.000171 |grep 1413821930           //按时间查询日志
+
+修改密码：
+mysql>use mysql
+mysql>update user set password=password("123456") where user="root";
+mysql>flush privileges;
+mysql>exit
+
+授权复制：
+主服务器授权：
+grant replication slave on *.* to xxxx@8.8.8.8 identified by 'yyyyy';
+
+从服务器授权：
+change master to master_host='11.22.33.66',master_user='cccc_cp',master_password='xxxxxxxxx',master_log_file='mysql-bin.000171',master_log_pos=2711151,master_port=100002;
+
+
+检索包含最大/最小值的行
+mysql> SELECT student_name, MIN(test_score), MAX(test_score)
+-> FROM student
+-> GROUP BY student_name;
+
+巧用rand()/rand(n)提取随机行
+mysql> SELECT * FROM table1, table2 WHERE a=b AND c<d
+ORDER BY RAND() LIMIT 1000;
+
+利用group by 的with rollup 子句做统计
+mysql>select year, country, product, sum(profit)
+from sales group by year, country, product with rollup;
+
+mysql>select year, country, product, sum(profit)
+from sales group by year, country, product;
+
+SELECT year, country, product, SUM(profit)
+FROM sales GROUP BY year, country, product WITH ROLLUP
+LIMIT 5;
+当你使用ROLLUP时, 你不能同时使用ORDER BY子句进行结果排序。换言之， ROLLUP
+和ORDER BY 是互相排斥的;LIMIT 用在ROLLUP 后面
+
+Group by 统计语句的一般用法:
+SELECT student_name, AVG([DISTINCT] expr)
+-> FROM student
+-> GROUP BY student_name;
+
+
+
+1. mysql的启动与停止
+启动MYSQL服务 net start mysql
+停止MYSQL服务 net stop mysql
+2. netstat –na | findstr 3306 查看被监听的端口 , findstr用于查找后面的端口是否存在
+3. 登陆MYSQL控制台
+mysql –u用户名 –p密码 -h主机IP db_name
+4. 进入MYSQL命令行工具后 , 使用status; 或\s 查看运行环境信息
+5. 显示所有数据库 : show databases;
+6. 切换数据库 : use new_dbname;
+7. 显示数据库中列表 : show tables;
+8. 显示某个表创建时的全部信息 : show create table table_name;
+9. 查看表的具体属性信息及表中各字段的描述 Describe table_name; 缩写形式 : desc table_name;
+常用SQL语句
+
+1.
+数据库创建 : Create database db_name;
+例 : create table users (
+id int primary key auto_increment,
+nikename varchar(20) not null unique,
+password varchar(100) not null,
+address varchar(200),
+reg_date timestamp not null default CURRENT_TIMESTAMP);
+
+数据库删除 : Drop database db_name;
+删除时可先判断是否存在
+例 : drop database if exits db_name
+2.
+建表 : create table table_name (字段1 数据类型 , 字段2 数据类型);
+例 : create table mytable (id int , username char(20));
+删表 : drop table table_name;
+例 : drop table mytable;
+3.
+表结构的修改
+增加一个字段格式：
+alter table table_name add column (字段名 字段类型);
+指定字段插入的位置：
+alter table table_name add column 字段名 字段类型 after 某字段；
+删除一个字段：
+alter table table_name drop字段名;
+修改字段名称/类型
+alter table table_name change 旧字段名 新字段名 新字段的类型;
+改表的名字
+alter table table_name rename to new_table_name;
+4.
+添加数据 : Insert into 表名 [(字段1 , 字段2 , ….)] values (值1 , 值2 , …..);
+如果向表中的每个字段都插入一个值,那么前面 [ ] 括号内字段名可写也可不写
+例 : insert into mytable (id,username) values (1,’zhangsan’);
+5.
+查询
+一般查询结构:
+select * from table_name
+where ...
+group by ...
+having ...
+order by ...
+limit ...;
+例 : select id,username from mytable where id=1 order by desc;
+6.
+更新指定数据 , 更新某一个字段的数据（注意，不是更新字段的名字）
+Update table_name set 字段名=’新值’ [, 字段2 =’新值’ , …..][where id=id_num] [order by 字段 顺序]
+例 : update mytable set username=’lisi’ where id=1;
+Order语句是查询的顺序 , 如 : order by id desc(或asc) , 顺序有两种 : desc倒序(100—1,即从最新数据往后查询),asc(从1-100)，Where和order语句也可用于查询select 与删除delete
+7.
+删除表中的信息 :
+删除整个表中的信息 : delete from table_name;
+删除表中指定条件的语句 : delete from table_name where 条件;
+8.
+创建数据库用户
+CREATE USER username1 identified BY ‘password’ , username2 IDENTIFIED BY ‘password’….
+9.
+用户的权限控制
+将某个库中的某个表的控制权赋予某个用户
+Grant all ON db_name.table_name TO user_name [ indentified by ‘password’ ];
+10.
+增加主键，外键，约束，索引
+约束 -- 主键Primary key、唯一性Unique、非空Not Null
+自动增张 -- auto_increment
+外键 -- Foreign key，与reference table_name(col_name列名)配合使用，建表时单独使用
+删除多个表中有关联的数据 -- 设置foreign key 为set null
+11.
+查看数据库当前引擎
+SHOW CREATE TABLE table_name;
+修改数据库引擎
+ALTER TABLE table_name ENGINE=MyISAM | InnoDB;
