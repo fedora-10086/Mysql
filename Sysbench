@@ -1,0 +1,60 @@
+针对Mysql测试部分：
+
+下载安装包 https://github.com/akopytov/sysbench
+
+shell> wget https://github.com/akopytov/sysbench/archive/1.0.zip -O "sysbench-1.0.zip"
+shell> unzip sysbench-1.0.zip
+shell> cd sysbench-1.0
+
+安装依赖库
+
+shell> yum install automake libtool -y
+
+开始安装
+
+shell> ./autogen.sh
+shell> ./configure
+#ERROR: cannot find MySQL libraries. If you want to compile with MySQL support 没找到mysql库 需要用参数指定下 --with-mysql-includes和--with-mysql-libs
+
+shell> ./configure --with-mysql-includes=/usr/local/mysql/include/ --with-mysql-libs=/usr/local/mysql/lib/
+shell> make && make install
+
+执行下命令:
+ shell> sysbench --help
+报错1）：
+#sysbench: error while loading shared libraries: libmysqlclient.so.20: cannot open shared object file: No such file or directory
+
+#问题原因：sysbench无法找到mysql的库文件，可能是环境变量LD_LIBRARY_PATH没有设置，设置后即可解决该问题：
+shell> export LD_LIBRARY_PATH=/usr/local/mysql/lib/lib
+
+报错2）：
+error while loading shared libraries:libmysqlclient.so.18错误
+
+解决，就是查看你的mysql安装目录下/安装目录/lib/libmysqlclient.so.18是否存在，如果存在，那就做一个软链接到/usr/lib64/目录下
+ln -s /usr/local/mysql/lib/libmysqlclient.so.18 /usr/lib64
+
+ shell> sysbench --version
+sysbench 1.0
+
+创建测试数据库sbtest
+
+shell> mysqladmin create sbtest -uroot -p
+Enter password:
+
+测试准备: 20个并发连接，20张表 每个表填充10W条数据 最大请求时间120s
+
+进入到*.lua脚本的文件目录 运行  sysbench  命令：
+cd /usr/local/share/sysbench
+
+写入数据：
+sysbench oltp_read_write.lua --mysql-host=127.0.0.1 --mysql-port=3306 --mysql-db=sbtest --mysql-user=root --mysql-password=passwd --table_size=100000 --tables=20 --threads=10 --time=120 --report-interval=10 prepare
+
+运行：
+sysbench oltp_read_write.lua --mysql-host=127.0.0.1 --mysql-port=3306 --mysql-db=sbtest --mysql-user=root --mysql-password=passwd --table_size=100000 --tables=20 --threads=10 --time=120 --report-interval=10 run
+
+清除数据：
+sysbench oltp_read_write.lua --mysql-host=127.0.0.1 --mysql-port=3306 --mysql-db=sbtest --mysql-user=root --mysql-password=passwd --table_size=100000 --tables=20 --threads=10 --time=120 --report-interval=10 cleanup
+
+参考：
+http://www.cnblogs.com/cbzj/p/6763743.html
+http://www.ywnds.com/?p=10111
