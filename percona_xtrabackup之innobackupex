@@ -1,0 +1,116 @@
+二进制日志相关的几个选项：
+    innodb_support_xa={TRUE|FLASE}
+    sync_binlog=#   建议设定为1
+    设定多久同步一次二进制日志至磁盘文件中，0表示不同步，任何正数值都表示对二进制每多少次写    操作之后同步一次，当autocommit的值为1时，每条语句的执行都会引起二进制日志同步，否则，每    个事务的提交会引起二进制日志同步。
+
+   
+percona:
+    ibbackup:InnoDB online physical backup($5000/台)
+    full
+    incremental
+   
+    MyISAM:warm backup,full
+
+mysqldump( 小于50G数据库 )
+LVM---->mylvmbackup(perl scripts)
+
+percona:  www.percona.com   software->percona xtrabackup
+    xtrabackup
+        xtradb:innodb的增强版
+        innodb
+
+使用：
+shell>innobackupex --user=xxx --password=xxx  /path/to/backup-dir/
+
+使用最小权限用户进行备份：
+mysql>create user 'bkpuser'@'localhost' identified by 'yyyy';
+mysql>revoke all privileges,grant option from 'bkpuser';
+mysql>grant reload,lock tables,replication client on *.* to 'bkpuser'@'localhost';
+mysql>flush privileges;
+
+
+innobackupex会在备份目录中存放以下文件：
+xtrabackup_checkpoints----备份类型、备份状态和LSN(日志序列号)范围
+xtrabackupex_binlog_info----当前服务器正在使用的二进制日志文件及至备份这一刻为止二进制日志事件的位置
+
+xtrabackup_binlog_pos_innodb----二进制日志文件及用于InnoDB或XtraDB表的二进制日志文件的当前position
+
+xtrabackup_binary----备份中用到的xtrabackup的可执行文件
+backup-my.cnf ---备份命令用到的配置选项信息。
+
+
+恢复前准备工作：
+shell>innobackupex --apply-log  /path/to/backup-dir/2015-06-22/
+备份完成后，数据库又发生了新的写入改变：
+mysql>flush logs;
+mysql>\q
+
+shell>cp mysql-bin.00001 /root
+shell>service mysql stop
+shell> rm -rf ./*      //删除当前数据库目录内所有数据，模拟数据库损坏。
+
+shell>cd /usr/local/mysql
+shell>scripts/mysql_install_db --user=mysql --datadir=/mydata/data/       初始化数据库
+
+shell>innobackupex --copy-back /path/to/backup-dir     恢复数据库
+
+shell>chown -R mysql.mysql ./*        恢复属主
+
+shell>mysqlbinlog /root/mysql-bin.00001 > /mnt/abc.sql
+mysql>set sql_log_bin=0;
+mysql>source /mnt/abc.sql;
+mysql>set sql_log_bin=1;
+mysql>use db_name;
+mysql>select * from tab_name;     验证恢复的数据完整性。
+
+以上为xtrabackup + 二进制日志 的模式备份及恢复
+
+
+innobackupex 增量备份：备份前应该进行一次完全备份
+shell>innobackupex --incremental /backup --incremental-basedir=BASEDIR
+其中，BASEDIR是完全备份所在目录
+
+shell>innobackupex --incremental /backup --incremental-basedir=/backup/2015-06-10_22-31-58/
+
+再次增量备份：
+shell>innobackupex --incremental /back --incremental-basedir=/backup/2015-06-10_22-31-58/
+
+innobackupex完全备份+ 增量备份恢复数据
+准备恢复动作：
+shell>innobackupex --apply-log --redo-only BASE-DIR
+shell>innobackupex --apply-log --redo-only BASE-DIR --incremental-dir=INCREMENTAL-DIR-1
+shell>innobackupex --apply-log --redo-only BASE-DIR --incremental-dir=INCREMENTAL-DIR-2
+其中BASE-DIR 是完全备份所在目录，INCREMENTAL-DIR-1是第一次增量备份的目录，INCREMENTAL-DIR-2是第二次增量备份所在目录，以此类推；如果有多次增量备份，每一次都要执行如上操作。
+此时，所以的增量备份已经合并至完全备份里去了，恢复时只需制定到完全备份目录即可。
+
+接下来：
+shell>service mysql stop;
+shell>cd /mysqldata/data/
+shell>rm -rf ./*
+shell>innobackupex --copy-back /backup/2015-06-10_22-xx-yy/
+shell>chown -R mysql.mysql ./*
+shell>service mysqld start
+
+每次还原以后，都要必须做一次完全备份操作。。。。。然在此基础上再做增量备份。
+
+
+导入导出单张表：
+需要mysql服务器启用innodb_file_per_table=1和innodb_expand_import=1 选项
+
+导出 表：导出表是在备份 的prepare阶段进行的，因此，完全备份完成，就可以在prepare过程中通过 --export选项将某表导出了；
+shell>innobackupex --apply-log --export /path/to/backup
+此命令会为每个innodb表的表空间创建一个以.exp结尾的文件，此文件可用于导入至其他服务器。
+
+导入 表:
+服务器要启用 innodb_file_per_table=1和innodb_expand_import=1 选项
+
+要在mysql服务器上导入来自其他服务器的某innodb表，需要先在当前服务器上创建一个跟原表结构一致的表，然后才能实现将表导入；
+mysql>use db_name;
+mysql>show create table table_name;   //得到原表的，表结构，cp到目标服务器，建立同样的表结构及相同的表名称。
+mysql>create table mytable (...) ENGINE=InnoDB;
+
+然后将其表空间删除：
+mysql>alter table mydatabase.mytable discard tablespace;
+接下来,将来自于”导出“表的服务器的mytable表的mytable.idb和mytable.exp文件复制到当前服务器的数据目录，然后使用如下命令将其导入：
+
+mysql>alter table mydatabase.mytable import tablespace;
