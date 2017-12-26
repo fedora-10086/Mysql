@@ -1,0 +1,73 @@
+Mariadb-10.2.9 源码安装
+系统环境：Centos6.9(Final)
+
+mariadb端口：3309
+#wget https://downloads.mariadb.org/interstitial/mariadb-10.2.9/source/mariadb-10.2.9.tar.gz
+
+建立mariadb用户
+# groupadd -r mariadb
+# useradd -g mariadb -r -M -s /sbin/nologin mariadb //这个mariadb用户不能登录
+ 
+
+依赖组件
+# yum -y install gcc gcc-c++ make cmake ncurses ncurses libxml2 libxml2-devel openssl-devel bison bison-devel readline-devel zlib-devel openssl-devel libaio-devel
+
+# tar zxvf mariadb-10.2.9.tar.gz
+# cd mariadb-10.2.9
+# cmake . -DMYSQL_UNIX_ADDR=/tmp/mariadb.sock -DSYSCONFDIR=/usr/local/mariadb -DMYSQL_TCP_PORT=3309 -DEXTRA_CHARSETS=all -DMYSQL_USER=mariadb -DCMAKE_INSTALL_PREFIX=/usr/local/mariadb -DMYSQL_DATADIR=/data/mariadb  -DWITH_XTRADB_STORAGE_ENGINE=1 -DWITH_FEDERATEDX_STORAGE_ENGINE=1 -DWITH_ARCHIVE_STORAGE_ENGINE=1 -DWITH_MYISAM_STORAGE_ENGINE=1 -DWITH_INNOBASE_STORAGE_ENGINE=1 -DWITH_ARCHIVE_STPRAGE_ENGINE=1 -DWITH_BLACKHOLE_STORAGE_ENGINE=1 -DWIYH_READLINE=1 -DWIYH_SSL=system -DVITH_ZLIB=system -DWITH_LOBWRAP=0 -DDEFAULT_CHARSET=utf8 -DDEFAULT_COLLATION=utf8_general_ci
+# make -j 2
+# make install
+
+把MariaDB服务加入系统环境变量：在最后添加下面这一行
+# vim /etc/profile 
+export PATH=$PATH:/usr/local/mariadb/bin
+# source /etc/profile
+
+复制配置文件
+# cp /usr/local/mariadb/support-files/my-large.cnf /usr/local/mariadb/my.cnf
+ln -s /usr/local/mariadb/my.cnf /etc/my.cnf
+
+初始化数据库
+cd /usr/local/mariadb
+./scripts/mysql_install_db --basedir=/usr/local/mariadb --datadir=/data/mariadb --user=mariadb --defaults-file=/usr/local/mariadb/my.cnf
+
+
+复制服务启动脚本
+# cp /usr/local/mariadb/support-files/mysql.server /etc/init.d/mariadb
+# vim /etc/init.d/mariadb
+找到
+$bindir/mysqld_safe --datadir="$datadir" --pid-file="$mysqld_pid_file_path" $other_args >/dev/null 2>&1 &
+行，改为
+$bindir/mysqld_safe --defaults-file=/usr/local/mariadb/my.cnf --datadir="$datadir" --pid-file="$mysqld_pid_file_path" $other_args >/dev/null 2>&1 &
+即添加了--defaults-file=/usr/local/mariadb/my.cnf
+保存退出
+
+# chmod +x /etc/init.d/mariadb
+# chkconfig mariadb on
+
+配置 vi /etc/my.cnf
+在[mysqld]模块添加下面的几行：
+log-error = /data/mariadb/mariadb_error.log
+pid-file = /data/mariadb/mariadb.pid
+user=mariadb
+datadir = /data/mariadb
+basedir = /usr/local/mariadb
+
+新增加mysqld_safe块
+[mysqld_safe]
+log-error= /data/mariadb/mariadb_error.log
+pid-file=/data/mariadb/mariadb.pid
+
+
+启动前修下目录权限
+# chown -R mariadb:mariadb /data/mariadb
+# chown -R mariadb:mariadb /data/mariadb/.
+# chown -R mariadb:mariadb /usr/local/mariadb
+# chown -R mariadb:mariadb /usr/local/mariadb/.
+
+启动MariaDB:
+# /etc/init.d/mariadb start
+
+mysql_secure_installation   设置密码及删除不必要的库和用户。
+
+mysql -u root -p
