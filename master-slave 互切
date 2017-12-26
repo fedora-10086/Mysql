@@ -1,0 +1,60 @@
+主从服务器同步维护
+
+由于各种原因，导致主从数据不一致，在负载低的时候，进行手动同步.
+
+在主服务器上执行
+
+    mysql>flush tables with read lock;  
+    Query OK,rows affected (0.01 sec)  
+    mysql>show master status;  
+    +——————+———-+————–+——————+  
+    | File | Position | Binlog_Do_DB | Binlog_Ignore_DB |  
+    +——————+———-+————–+——————+  
+    | mysql-bin.0000011 | 260| | |  
+    +——————+———-+————–+——————+ 
+
+在从服务器上执行
+
+先得到当前主服务器的二进制文件名和偏移量,执行命令使从服务器与主服务器同步
+
+    mysql>select master_pos_wait(‘mysql-bin.0000011′,’260′);  
+    +————————————————–+  
+    | master_pos_wait(‘mysql-bin.0000011′,’260′) |  
+    +————————————————–+  
+    | 0 |  
+    +————————————————–+  
+    1 row in set (0.01 sec) 
+
+同步完成后，在主服务器上执行解锁
+
+    mysql>unlock tables; 
+
+切换主从服务器
+
+当主服务器出现故障时，可将从服务器当主服务器来使用.步骤如下:
+
+1、保证所有从数据库都已经执行了relay log中的全部更新，在从服务器中执行
+
+stop slave io_thread,用show processlist检查，查看状态是否是Has read all relay log,表示更新完成.
+
+    mysql>stop slave io_thread;  
+    Query OK,0 affected (0.00 sec)  
+    mysql>show processlist\G;  
+    *************************** 2. row ***************************  
+    Id: 2  
+    User: system user  
+    Host:  
+    db: NULL  
+    Command: Connect  
+    Time: 4757  
+    State: Has read all relay log; waiting for the slave I/O thread to update it  
+    Info: NULL 
+
+2、在从服务器上执行stop slave，reset master命令，重置成主数据库
+
+    mysql>stop slave;  
+    Query OK,0 affected (0.00 sec)  
+    mysql>reset master;  
+    Query OK,0 affected (0.00 sec) 
+
+3、删除新的主服务器数据库目录中的master.info和relay-log.info文件，否则下次重启时还会按照从服务器来启动.
