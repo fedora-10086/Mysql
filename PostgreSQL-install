@@ -1,0 +1,69 @@
+URL:http://ftp.postgresql.org/pub/source/v10.1/
+
+安装依赖包：
+yum install -y perl-ExtUtils-Embed readline-devel zlib-devel pam-devel libxml2-devel libxslt-devel openldap-devel  python-devel gcc-c++ openssl-devel cmake
+
+yum install -y gcc* readline-devel
+
+adduser postgres
+passwd postgres
+
+tar xf postgresql-10.1.tar.gz 
+cd postgresql-10.1
+./configure --prefix=/data1/pgsql/ --with-perl --with-libxml --with-libxslt
+
+gmake
+gmake install
+
+vi ~/.bash_profile
+PATH=$PATH:$HOME/bin:/data1/pgsql/bin
+
+source .bash_profile
+
+mkdir /data1/pgdata/
+chown postgres:postgres /data1/pgdata/
+
+
+
+su - postgres
+/data1/pgsql/bin/initdb -D /data1/pgdata/
+
+vi ~/.bash_profile
+[ -f /etc/profile ] && source /etc/profile
+
+export PGDATA=/data1/pgdata
+export PGHOME=/data1/pgsql
+export PATH=.:$PGHOME/bin:$PATH:$PGDATA/bin
+export PS1='[\u@\h \W]\$'
+PATH=$PATH:$HOME/bin:/data1/pgsql/bin
+
+export PATH
+export TMOUT=1000000
+
+[ -f /var/lib/pgsql/.pgsql_profile ] && source /var/lib/pgsql/.pgsql_profile
+
+source .bash_profile
+
+/data1/pgsql/bin/pg_ctl -D /data1/pgdata/ -l logfile start 或者是：
+pg_ctl start
+psql
+\l
+\q
+pg_ctl stop
+
+
+
+
+root环境
+cp /root/tools/postgresql-10.1/contrib/start-scripts/linux /etc/init.d/postgresql-10.1
+
+chmod +x postgresql-10.1
+vi /etc/init.d/postgresql-10.1
+
+prefix=/data1/pgsql
+PGDATA="/data1/pgdata"
+PGUSER=postgres
+PGLOG="$PGDATA/serverlog"
+
+service postgresql-10.1 start
+
